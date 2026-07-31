@@ -5,7 +5,9 @@ const CONFIG = {
     speechEnabled: true,
     translateEnabled: false,
     translationCache: {},
-    currentUtterance: null
+    currentUtterance: null,
+    // Scan mode: 'auto' (directory listing for local server) / 'json' (pre-generated files.json for GitHub Pages)
+    scanMode: 'auto'
 };
 
 // Current file path (for resolving image paths relative to MD location)
@@ -56,47 +58,63 @@ const elements = {
 };
 
 // Auto-scan markdown files from directory listing (works with local HTTP server)
+// Or from pre-generated files.json for GitHub Pages
 let markdownFiles = [];
 
 function autoScanMarkdownFiles() {
-    // Our structure is Chem/MC/ and Chem/Notes/
-    const subfolders = ['MC/', 'Notes/'];
-    let pending = subfolders.length;
-    let allFiles = [];
-    
-    subfolders.forEach(folder => {
-        fetch(CONFIG.baseFolder + folder)
-        .then(response => response.text())
-        .then(html => {
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(html, 'text/html');
-            const links = Array.from(doc.querySelectorAll('a'));
-            
-            links.forEach(link => {
-                const href = link.getAttribute('href');
-                if (href.endsWith('.md')) {
-                    // Skip parent link
-                    if (href.includes('../')) return;
-                    allFiles.push(folder + href);
-                }
-            });
-            
-            pending--;
-            if (pending === 0) {
-                // All subfolders scanned
-                markdownFiles = allFiles;
-                renderFileList();
-            }
+    if (CONFIG.scanMode === 'json') {
+        // Load from pre-generated files.json (for GitHub Pages)
+        fetch('files.json')
+        .then(response => response.json())
+        .then(data => {
+            markdownFiles = data.files || [];
+            renderFileList();
         })
         .catch(error => {
-            console.error(`Failed to scan ${folder}:`, error);
-            pending--;
-            if (pending === 0) {
-                markdownFiles = allFiles;
-                renderFileList();
-            }
+            console.error('Failed to load files.json:', error);
+            alert('Error: Cannot load files.json for GitHub Pages. Check that files.json exists in the chem folder.');
         });
-    });
+    } else {
+        // Auto-scan from directory listing (local server)
+        // Our structure is Chem/MC/ and Chem/Notes/
+        const subfolders = ['MC/', 'Notes/'];
+        let pending = subfolders.length;
+        let allFiles = [];
+        
+        subfolders.forEach(folder => {
+            fetch(CONFIG.baseFolder + folder)
+            .then(response => response.text())
+            .then(html => {
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+                const links = Array.from(doc.querySelectorAll('a'));
+                
+                links.forEach(link => {
+                    const href = link.getAttribute('href');
+                    if (href.endsWith('.md')) {
+                        // Skip parent link
+                        if (href.includes('../')) return;
+                        allFiles.push(folder + href);
+                    }
+                });
+                
+                pending--;
+                if (pending === 0) {
+                    // All subfolders scanned
+                    markdownFiles = allFiles;
+                    renderFileList();
+                }
+            })
+            .catch(error => {
+                console.error(`Failed to scan ${folder}:`, error);
+                pending--;
+                if (pending === 0) {
+                    markdownFiles = allFiles;
+                    renderFileList();
+                }
+            });
+        });
+    }
 }
 
 // Initialize
