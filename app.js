@@ -7,7 +7,7 @@ const CONFIG = {
     translationCache: {},
     currentUtterance: null,
     // Scan mode: 'auto' (directory listing for local server) / 'json' (pre-generated files.json for GitHub Pages)
-    scanMode: 'auto'
+    scanMode: 'json'
 };
 
 // Current file path (for resolving image paths relative to MD location)
